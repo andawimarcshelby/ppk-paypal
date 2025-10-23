@@ -1,0 +1,58 @@
+# docker-compose.yml — ppk-paypal (skeleton)
+# NOTE:
+# - Keep this minimal for now. We'll finalize build steps and Dockerfiles in Steps 1, 2, and 5.
+# - We intentionally omit the deprecated `version:` key.
+# - Do NOT run `docker compose up` yet; we’ll add Dockerfiles and .envs first.
+
+name: ppk-paypal
+
+services:
+  backend:
+    # Will be a Laravel 12 PHP 8.3 app (Step 1 & Step 5)
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ppk-backend
+    ports:
+      - "8000:8000"   # Laravel app port
+    depends_on:
+      - db
+    networks:
+      - ppknet
+    # volumes, env_file, healthcheck will be added later (Step 5)
+
+  frontend:
+    # Will be a React + Vite + Tailwind app (Step 2 & Step 5)
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ppk-frontend
+    ports:
+      - "3000:3000"   # Vite dev server
+    depends_on:
+      - backend
+    networks:
+      - ppknet
+    # volumes, env_file, healthcheck will be added later (Step 5)
+
+  db:
+    image: postgres:15
+    container_name: ppk-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ppk_paypal
+      POSTGRES_USER: ppk_user
+      POSTGRES_PASSWORD: ppk_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - ppknet
+
+volumes:
+  db_data:
+
+networks:
+  ppknet:
+    driver: bridge
