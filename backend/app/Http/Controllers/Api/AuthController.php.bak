@@ -1,0 +1,110 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterRequest;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+
+class AuthController extends Controller
+{
+    /**
+     * POST /api/register
+     */
+    public function register(RegisterRequest $request)
+    {
+        $data = $request->validated();
+
+        // Create user; Laravel 12 "hashed" cast will bcrypt the password automatically
+        $user = User::create([
+            'full_name'     => $data['full_name'],
+            'email'         => $data['email'],
+            'mobile_number' => $data['mobile_number'] ?? null,
+            'password'      => $data['password'], // cast => hashed
+            'is_verified'   => false,
+        ]);
+
+        return response()->json([
+            'message' => 'Registration successful.',
+            'user'    => [
+                'id'               => $user->id,
+                'full_name'        => $user->full_name,
+                'email'            => $user->email,
+                'mobile_number'    => $user->mobile_number,
+                'two_factor_enabled' => (bool) $user->two_factor_enabled,
+            ],
+        ], 201);
+    }
+
+    /**
+     * POST /api/login
+     * Returns a Sanctum personal access token (Bearer) for SPA/API usage.
+     */
+    public function login(LoginRequest $request)
+    {
+        $credentials = $request->validated();
+
+        $user = User::where('email', $credentials['email'])->first();
+
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+            return response()->json(['message' => 'Invalid credentials.'], 422);
+        }
+
+        // Update last login info
+        $user->forceFill([
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip(),
+        ])->save();
+
+        // Issue Sanctum token (name: "auth-token")
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        // If 2FA is enabled, the frontend will challenge with TOTP after password step.
+        // We'll enforce TOTP in Step 3; for now we return the 2FA status.
+        return response()->json([
+            'message' => 'Login successful.',
+            'token'   => $token,
+            '2fa'     => [
+                'enabled' => (bool) $user->two_factor_enabled,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/logout
+     * Revokes the current access token.
+     */
+    public function logout(Request $request)
+    {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        if ($user && $request->user()->currentAccessToken()) {
+            $request->user()->currentAccessToken()->delete();
+        }
+
+        return response()->json(['message' => 'Logged out.']);
+    }
+
+    /**
+     * GET /api/user (protected)
+     */
+    public function user(Request $request)
+    {
+        /** @var \App\Models\User $u */
+        $u = $request->user();
+
+        return response()->json([
+            'id'                => $u->id,
+            'full_name'         => $u->full_name,
+            'email'             => $u->email,
+            'mobile_number'     => $u->mobile_number,
+            'two_factor_enabled'=> (bool) $u->two_factor_enabled,
+            'last_login_at'     => $u->last_login_at,
+            'last_login_ip'     => $u->last_login_ip,
+        ]);
+    }
+}

@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-xl2 px-4 py-2 font-medium transition shadow-soft bg-primary text-white hover:opacity-95 disabled:opacity-60 disabled:cursor-not-allowed;
+}
+
+.card {
+  @apply bg-panel shadow-soft rounded-2xl p-6;
+}
+
+.input {
+  @apply w-full rounded-xl2 border border-gray-200 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary;
+}
+
+.label {
+  @apply text-sm font-medium text-subink mb-1;
+}
+
+.link {
+  @apply text-primary2 hover:underline;
+}
